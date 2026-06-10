@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestor de Tareas — HGR Reynosa</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#1A5276;--primary-lt:#D6EAF8;--primary-dk:#0E2F43;
+  --accent:#148F77;--accent-lt:#D5F5E3;
+  --warn:#B7770D;--warn-lt:#FEF9E7;
+  --danger:#922B21;--danger-lt:#FDEDEC;
+  --purple:#6C3483;--purple-lt:#E8DAEF;
+  --border:rgba(0,0,0,0.10);
+  --bg:#F4F6F9;--surface:#FFFFFF;--surface2:#F4F6F9;
+  --text:#1C2833;--text2:#5D6D7E;--text3:#AEB6BF;
+  --radius:8px;--radius-lg:12px;
+  --shadow:0 1px 4px rgba(0,0,0,0.08);
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+a{color:var(--primary)}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:220px 1fr;grid-template-rows:auto 1fr;min-height:100vh}
+.topbar{grid-column:1/-1;background:var(--primary);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:12px;justify-content:space-between}
+.topbar-brand{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.topbar-sub{font-size:11px;opacity:.7}
+.topbar-right{display:flex;gap:8px;align-items:center}
+.sidebar{background:var(--surface);border-right:0.5px solid var(--border);padding:16px 0;overflow-y:auto}
+.sidebar-section{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:4px 18px 6px;margin-top:10px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 18px;font-size:13px;color:var(--text2);cursor:pointer;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--primary-lt);color:var(--primary);border-left-color:var(--primary);font-weight:500}
+.main{padding:20px;overflow-y:auto}
+
+/* ── BOTONES ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;cursor:pointer;transition:.15s}
+.btn:hover{background:var(--surface2)}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-dk)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-hdr{background:rgba(255,255,255,0.18);border:0.5px solid rgba(255,255,255,.3);color:#fff;font-size:12px;padding:5px 12px;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:5px}
+.btn-hdr:hover{background:rgba(255,255,255,.28)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;white-space:nowrap;line-height:1.4}
+.b-alta{background:#FDEDEC;color:#7B241C}.b-media{background:#FEF9E7;color:#7D6608}.b-baja{background:#D5F5E3;color:#1E8449}
+.b-pend{background:#D6EAF8;color:#1A5276}.b-prog{background:#FEF9E7;color:#7D6608}
+.b-comp{background:#D5F5E3;color:#1E8449}.b-bloq{background:#FDEDEC;color:#922B21}.b-rev{background:#E8DAEF;color:#6C3483}
+.b-moceb{background:#D6EAF8;color:#1A5276}.b-comit{background:#E8DAEF;color:#6C3483}
+.b-indica{background:#D5F5E3;color:#145A32}.b-mejora{background:#FEF9E7;color:#7D6608}.b-admin{background:#F2F3F4;color:#555}
+
+/* ── VISTAS ── */
+.view{display:none}.view.active{display:block}
+.view-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.view-title{font-size:17px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+
+/* ── BANNERS ── */
+.banner{border-radius:var(--radius);padding:8px 14px;font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.banner-success{background:#D5F5E3;border:0.5px solid #1E8449;color:#145A32}
+.banner-warn{background:#FEF9E7;border:0.5px solid #B7770D;color:#7D6608}
+.banner-danger{background:#FDEDEC;border:0.5px solid #922B21;color:#7B241C}
+.banner{display:none}.banner.show{display:flex}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;box-shadow:var(--shadow)}
+.kpi-num{font-size:30px;font-weight:700;line-height:1}
+.kpi-lbl{font-size:11px;color:var(--text2);margin-top:4px}
+.kpi-trend{font-size:10px;margin-top:3px}
+.kpi.danger .kpi-num{color:var(--danger)}.kpi.warn .kpi-num{color:var(--warn)}
+.kpi.ok .kpi-num{color:var(--accent)}.kpi.info .kpi-num{color:var(--primary)}
+.kpi.purple .kpi-num{color:var(--purple)}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+.card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* ── CHARTS ── */
+.chart-wrap{position:relative;width:100%;height:240px}
+
+/* ── SERV TABLE ── */
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{text-align:left;font-weight:600;color:var(--text2);font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.data-table td{padding:8px 10px;border-bottom:0.5px solid var(--border);vertical-align:middle}
+.data-table tr:hover td{background:var(--surface2)}
+.data-table tr.vencida td{background:#FFF8F8}
+.data-table tr.vencida:hover td{background:#FDEDEC}
+.progress-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+.progress-fill{height:100%;border-radius:3px}
+
+/* ── KANBAN ── */
+.kanban-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.kanban-board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.k-col{background:var(--surface2);border-radius:var(--radius-lg);padding:10px;min-height:420px}
+.k-col-head{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+.k-col-head .cnt{background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600}
+.k-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:9px 11px;margin-bottom:7px;cursor:pointer;border-left:3px solid transparent;box-shadow:var(--shadow);transition:.15s}
+.k-card:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,0.1)}
+.k-card.alta{border-left-color:#E74C3C}.k-card.media{border-left-color:#F39C12}.k-card.baja{border-left-color:#27AE60}
+.k-card.vencida-card{border-left-color:#922B21;background:#FFF8F8}
+.k-title{font-size:12px;font-weight:500;color:var(--text);line-height:1.35;margin-bottom:6px}
+.k-meta{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:11px;color:var(--text2)}
+.k-svc{font-size:10px;color:var(--text3);margin-top:3px}
+
+/* ── LISTA ── */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.filter-bar select,.filter-bar input{font-size:12px;padding:6px 10px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--surface);color:var(--text);outline:none}
+.filter-bar select:focus,.filter-bar input:focus{border-color:var(--primary)}
+.filter-bar input{flex:1;min-width:140px}
+.empty-state{text-align:center;padding:40px;color:var(--text2)}
+
+/* ── COMITÉS ── */
+.comite-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.comite-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.comite-name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+.comite-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.acuerdo-row{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-top:0.5px solid var(--border)}
+.acuerdo-num{font-size:11px;color:var(--text3);min-width:24px;padding-top:1px}
+.acuerdo-body{flex:1}
+.acuerdo-text{font-size:12px;color:var(--text);line-height:1.4}
+.acuerdo-meta{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:20px 22px;width:100%;max-width:520px;box-shadow:0 8px 32px rgba(0,0,0,.18);max-height:90vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.form-row{margin-bottom:10px}
+.form-row.full{grid-column:1/-1}
+.form-row label{display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.form-row input,.form-row select,.form-row textarea{width:100%;font-size:13px;padding:7px 10px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--surface);color:var(--text);outline:none;transition:.15s}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--primary)}
+.form-row textarea{height:70px;resize:vertical}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:14px;border-top:0.5px solid var(--border)}
+.modal-info{background:var(--surface2);border-radius:var(--radius);padding:10px 12px;font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:10px}
+.modal-info code{background:var(--border);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:11px}
+
+/* ── CONFIG ── */
+.config-section{max-width:520px;margin-bottom:24px}
+.config-section h3{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:6px}
+.step-list{counter-reset:steps}
+.step-item{counter-increment:steps;display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;font-size:12px;color:var(--text2);line-height:1.6}
+.step-item::before{content:counter(steps);min-width:20px;height:20px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px}
+.code-block{background:#1C2833;color:#AED6F1;border-radius:var(--radius);padding:10px 12px;font-family:monospace;font-size:11px;line-height:1.6;overflow-x:auto;margin:8px 0}
+.tag-green{color:#58D68D}.tag-gray{color:#AEB6BF}.tag-yellow{color:#F9E79F}
+
+/* ── ACUERDO MODAL ── */
+.modal-tabs{display:flex;gap:0;border-bottom:0.5px solid var(--border);margin-bottom:14px}
+.modal-tab{padding:8px 16px;font-size:13px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent}
+.modal-tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:500}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .kanban-board{grid-template-columns:1fr 1fr}
+  .grid-2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div>
+    <div class="topbar-brand"><i class="ti ti-clipboard-check"></i> Gestor de Tareas — HGR Reynosa</div>
+    <div class="topbar-sub">Hospital General Reynosa "Dr. José María Cantú Garza" · IMSS-Bienestar · <span id="fecha-hdr"></span></div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-hdr" onclick="openModal('tarea')"><i class="ti ti-plus"></i> Nueva tarea</button>
+    <button class="btn-hdr" onclick="openModal('acuerdo')"><i class="ti ti-gavel"></i> Nuevo acuerdo</button>
+    <button class="btn-hdr" id="btn-sync" onclick="sincronizar()"><i class="ti ti-refresh"></i> Sincronizar</button>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-section">Vistas</div>
+  <div class="nav-item active" onclick="showView('dashboard',this)"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
+  <div class="nav-item" onclick="showView('kanban',this)"><i class="ti ti-layout-kanban"></i> Kanban</div>
+  <div class="nav-item" onclick="showView('lista',this)"><i class="ti ti-list-details"></i> Lista de tareas</div>
+  <div class="nav-item" onclick="showView('comites',this)"><i class="ti ti-users-group"></i> Acuerdos de comités</div>
+  <div class="sidebar-section">Sistema</div>
+  <div class="nav-item" onclick="showView('config',this)"><i class="ti ti-settings-2"></i> Configurar Google Sheets</div>
+  <div class="nav-item" onclick="exportarCSV()"><i class="ti ti-download"></i> Exportar CSV</div>
+  <div style="padding:14px 18px;font-size:10px;color:var(--text3);margin-top:auto;border-top:0.5px solid var(--border);position:absolute;bottom:0;left:0;right:0">
+    Depto. Gestión de Calidad · IMSS-Bienestar<br>CLUES TSIMB001260
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- BANNERS -->
+  <div id="banner-ok" class="banner banner-success"><i class="ti ti-circle-check"></i> <span id="banner-ok-txt">Datos sincronizados con Google Sheets</span></div>
+  <div id="banner-err" class="banner banner-danger"><i class="ti ti-alert-circle"></i> <span id="banner-err-txt">Error de conexión</span></div>
+  <div id="banner-info" class="banner banner-warn"><i class="ti ti-info-circle"></i> <span id="banner-info-txt"></span></div>
+
+  <!-- DASHBOARD -->
+  <div class="view active" id="v-dashboard">
+    <div class="view-header">
+      <div class="view-title"><i class="ti ti-layout-dashboard" style="color:var(--primary)"></i> Dashboard</div>
+      <div style="font-size:12px;color:var(--text2)" id="dash-updated"></div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi info"><div class="kpi-num" id="kpi-total">0</div><div class="kpi-lbl">Total tareas</div></div>
+      <div class="kpi danger"><div class="kpi-num" id="kpi-venc">0</div><div class="kpi-lbl">Vencidas</div></div>
+      <div class="kpi warn"><div class="kpi-num" id="kpi-pend">0</div><div class="kpi-lbl">Pendientes</div></div>
+      <div class="kpi warn"><div class="kpi-num" id="kpi-prog">0</div><div class="kpi-lbl">En progreso</div></div>
+      <div class="kpi ok"><div class="kpi-num" id="kpi-comp">0</div><div class="kpi-lbl">Completadas</div></div>
+      <div class="kpi purple"><div class="kpi-num" id="kpi-acuerdos">0</div><div class="kpi-lbl">Acuerdos activos</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-chart-bar"></i> Tareas por servicio</div>
+        <div class="chart-wrap"><canvas id="chartServ" role="img" aria-label="Tareas por servicio"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-chart-donut"></i> Distribución por tipo</div>
+        <div class="chart-wrap"><canvas id="chartTipo" role="img" aria-label="Tareas por tipo"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-table"></i> Cumplimiento por jefatura</div>
+      <div style="overflow-x:auto">
+      <table class="data-table">
+        <thead><tr><th>Servicio / Jefatura</th><th style="text-align:center">Total</th><th style="text-align:center">Completadas</th><th style="text-align:center">Vencidas</th><th style="text-align:center">% Avance</th><th>Estado</th></tr></thead>
+        <tbody id="serv-tbody"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- KANBAN -->
+  <div class="view" id="v-kanban">
+    <div class="view-header">
+      <div class="view-title"><i class="ti ti-layout-kanban" style="color:var(--primary)"></i> Tablero Kanban</div>
+    </div>
+    <div class="kanban-filters">
+      <select id="k-svc" onchange="renderKanban()"><option value="">— Servicio —</option></select>
+      <select id="k-prio" onchange="renderKanban()"><option value="">— Prioridad —</option><option>Alta</option><option>Media</option><option>Baja</option></select>
+      <select id="k-tipo" onchange="renderKanban()"><option value="">— Tipo —</option><option>MOCEBPASS</option><option>Comité</option><option>Indicadores</option><option>Mejora</option><option>Administrativo</option></select>
+      <input placeholder="🔍 Buscar tarea…" id="k-search" oninput="renderKanban()" style="flex:1;min-width:160px;padding:6px 10px;border:0.5px solid var(--border);border-radius:var(--radius);font-size:13px">
+    </div>
+    <div class="kanban-board">
+      <div class="k-col">
+        <div class="k-col-head"><span>Pendiente</span><span class="cnt" id="cnt-pend">0</span></div>
+        <div id="col-pend"></div>
+      </div>
+      <div class="k-col">
+        <div class="k-col-head"><span>En progreso</span><span class="cnt" id="cnt-prog">0</span></div>
+        <div id="col-prog"></div>
+      </div>
+      <div class="k-col">
+        <div class="k-col-head"><span>En revisión</span><span class="cnt" id="cnt-rev">0</span></div>
+        <div id="col-rev"></div>
+      </div>
+      <div class="k-col">
+        <div class="k-col-head"><span>Completada</span><span class="cnt" id="cnt-comp">0</span></div>
+        <div id="col-comp"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTA -->
+  <div class="view" id="v-lista">
+    <div class="view-header">
+      <div class="view-title"><i class="ti ti-list-details" style="color:var(--primary)"></i> Lista de tareas</div>
+      <div style="font-size:12px;color:var(--text2)" id="lista-count"></div>
+    </div>
+    <div class="filter-bar">
+      <select id="l-svc" onchange="renderLista()"><option value="">— Servicio —</option></select>
+      <select id="l-est" onchange="renderLista()"><option value="">— Estatus —</option><option>Pendiente</option><option>En Progreso</option><option>En Revisión</option><option>Completada</option><option>Bloqueada</option></select>
+      <select id="l-prio" onchange="renderLista()"><option value="">— Prioridad —</option><option>Alta</option><option>Media</option><option>Baja</option></select>
+      <select id="l-tipo" onchange="renderLista()"><option value="">— Tipo —</option><option>MOCEBPASS</option><option>Comité</option><option>Indicadores</option><option>Mejora</option><option>Administrativo</option></select>
+      <input placeholder="🔍 Buscar…" id="l-search" oninput="renderLista()">
+      <select id="l-sort" onchange="renderLista()">
+        <option value="venc">↑ Vencimiento</option>
+        <option value="prio">↑ Prioridad</option>
+        <option value="svc">↑ Servicio</option>
+        <option value="titulo">↑ Título</option>
+      </select>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>Tarea</th><th>Servicio</th><th>Responsable</th>
+            <th>Tipo</th><th>Prioridad</th><th>Estatus</th><th>Vencimiento</th><th></th>
+          </tr></thead>
+          <tbody id="lista-tbody"></tbody>
+        </table>
+      </div>
+      <div id="lista-empty" class="empty-state" style="display:none"><i class="ti ti-inbox" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>Sin tareas con los filtros seleccionados</div>
+    </div>
+  </div>
+
+  <!-- COMITÉS -->
+  <div class="view" id="v-comites">
+    <div class="view-header">
+      <div class="view-title"><i class="ti ti-users-group" style="color:var(--purple)"></i> Acuerdos de comités</div>
+    </div>
+    <div class="filter-bar" style="margin-bottom:14px">
+      <select id="c-comite" onchange="renderComites()"><option value="">— Todos los comités —</option></select>
+      <select id="c-est" onchange="renderComites()"><option value="">— Estatus —</option><option>Pendiente</option><option>En Progreso</option><option>Completada</option></select>
+    </div>
+    <div id="comites-container"></div>
+  </div>
+
+  <!-- CONFIG -->
+  <div class="view" id="v-config">
+    <div class="view-title" style="margin-bottom:20px"><i class="ti ti-settings-2" style="color:var(--primary)"></i> Configurar conexión a Google Sheets</div>
+    <div class="config-section">
+      <h3><i class="ti ti-table"></i> URL del Apps Script</h3>
+      <div class="form-row"><label>Web App URL (doGet endpoint)</label><input id="cfg-url" placeholder="https://script.google.com/macros/s/AKfycb…/exec" style="font-size:12px"></div>
+      <div class="form-row"><label>ID de la hoja de cálculo (opcional)</label><input id="cfg-sheetid" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" style="font-size:12px"></div>
+      <button class="btn btn-primary" onclick="saveConfig()"><i class="ti ti-device-floppy"></i> Guardar y probar conexión</button>
+    </div>
+    <div class="config-section">
+      <h3><i class="ti ti-rocket"></i> Pasos de instalación</h3>
+      <div class="step-list">
+        <div class="step-item">Crea una hoja de cálculo nueva en <strong>Google Sheets</strong>. Copia el ID de la URL (la parte larga entre /d/ y /edit).</div>
+        <div class="step-item">Ve a <strong>script.google.com</strong> → Nuevo proyecto. Ponle nombre: <em>GestorTareasHGR</em>.</div>
+        <div class="step-item">Borra todo el código que aparece y pega el contenido del archivo <code>apps_script_hgr.js</code>.</div>
+        <div class="step-item">En la línea <code>const SHEET_ID = 'TU_SHEET_ID_AQUÍ'</code>, reemplaza el texto con el ID de tu hoja.</div>
+        <div class="step-item">En el menú: <strong>Ejecutar → inicializarHojas</strong>. Acepta los permisos que solicite Google.</div>
+        <div class="step-item"><strong>Implementar → Nueva implementación</strong>. Tipo: Aplicación web. Ejecutar como: Yo. Acceso: Cualquier usuario. Haz clic en Implementar.</div>
+        <div class="step-item">Copia la URL generada. Pégala en el campo de arriba y haz clic en Guardar.</div>
+        <div class="step-item">Haz clic en <strong>Sincronizar</strong> en la barra superior. ¡Listo!</div>
+      </div>
+    </div>
+    <div class="config-section">
+      <h3><i class="ti ti-table"></i> Estructura de hojas requerida</h3>
+      <div class="modal-info">
+        <strong>Hoja "Tareas":</strong> ID | Título | Servicio | Responsable | Tipo | Prioridad | Estatus | Vencimiento | Comité | Descripción<br>
+        <strong>Hoja "Acuerdos":</strong> ID | Comité | Sesión | Acuerdo | Responsable | Vencimiento | Estatus<br>
+        <strong>Hoja "Log":</strong> Se crea automáticamente. Registra cada cambio con fecha, acción y usuario.<br><br>
+        La función <code>inicializarHojas()</code> crea estas hojas automáticamente con el formato correcto.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- MODAL NUEVA TAREA / EDITAR -->
+<div class="modal-overlay" id="modal-tarea">
+  <div class="modal">
+    <div class="modal-title" id="modal-tarea-title"><i class="ti ti-plus"></i> Nueva tarea</div>
+    <input type="hidden" id="m-id">
+    <div class="form-grid">
+      <div class="form-row full"><label>Título de la tarea *</label><input id="m-titulo" placeholder="Ej. Actualizar manual organizacional — Radiología"></div>
+      <div class="form-row"><label>Servicio / Jefatura *</label><select id="m-svc"></select></div>
+      <div class="form-row"><label>Responsable</label><input id="m-resp" placeholder="Nombre del responsable"></div>
+    </div>
+    <div class="form-grid-3">
+      <div class="form-row"><label>Tipo</label>
+        <select id="m-tipo"><option>MOCEBPASS</option><option>Comité</option><option>Indicadores</option><option>Mejora</option><option>Administrativo</option></select></div>
+      <div class="form-row"><label>Prioridad</label>
+        <select id="m-prio"><option>Alta</option><option>Media</option><option>Baja</option></select></div>
+      <div class="form-row"><label>Estatus</label>
+        <select id="m-est"><option>Pendiente</option><option>En Progreso</option><option>En Revisión</option><option>Completada</option><option>Bloqueada</option></select></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Fecha de vencimiento</label><input id="m-venc" type="date"></div>
+      <div class="form-row"><label>Comité (si aplica)</label><select id="m-comite"><option value="">— N/A —</option></select></div>
+    </div>
+    <div class="form-row"><label>Descripción / Evidencia requerida / Criterio MOCEBPASS</label><textarea id="m-desc" placeholder="Contexto adicional, criterio a cumplir, evidencia necesaria…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('tarea')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarTarea()"><i class="ti ti-check"></i> Guardar tarea</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO ACUERDO -->
+<div class="modal-overlay" id="modal-acuerdo">
+  <div class="modal">
+    <div class="modal-title"><i class="ti ti-gavel"></i> Nuevo acuerdo de comité</div>
+    <input type="hidden" id="a-id">
+    <div class="form-grid">
+      <div class="form-row"><label>Comité *</label><select id="a-comite"></select></div>
+      <div class="form-row"><label>Sesión</label><input id="a-sesion" placeholder="Ej. Sesión Ord. Junio 2026"></div>
+    </div>
+    <div class="form-row"><label>Texto del acuerdo *</label><textarea id="a-acuerdo" placeholder="Descripción del acuerdo adoptado en la sesión…"></textarea></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Responsable de seguimiento</label><input id="a-resp" placeholder="Nombre o cargo"></div>
+      <div class="form-row"><label>Fecha de vencimiento</label><input id="a-venc" type="date"></div>
+    </div>
+    <div class="form-row"><label>Estatus</label>
+      <select id="a-est"><option>Pendiente</option><option>En Progreso</option><option>Completada</option></select></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('acuerdo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarAcuerdo()"><i class="ti ti-check"></i> Guardar acuerdo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// DATOS MAESTROS
+// ════════════════════════════════════════════════════════════
+const SERVICIOS = [
+  'Urgencias','Medicina Interna','Cirugía General','Ginecología y Obstetricia',
+  'Pediatría','Quirófano','Terapia Intensiva','Laboratorio','Radiología e Imagen',
+  'Estomatología','Farmacia','Enfermería','ARIMAC / Recursos Humanos',
+  'Calidad y Planeación','Dirección General','Trabajo Social','Nutrición y Dietética'
+];
+const COMITES = [
+  'CODECIAAS','CEIE','SCAM','CPESMMMP','Comité de Insumos',
+  'Junta de Gobierno','CALIPAD','Subcomité de Antimicrobianos',
+  'Comité de Mortalidad','Comité de Transfusión','Comité de Calidad'
+];
+
+// ════════════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ════════════════════════════════════════════════════════════
+let tasks = [
+  {id:1,titulo:'Actualizar Manual Organizacional — Radiología',servicio:'Radiología e Imagen',responsable:'Jefa de Servicio',tipo:'MOCEBPASS',prioridad:'Alta',estatus:'En Progreso',vencimiento:'2026-06-12',comite:'',desc:'Criterio 2.1.3 MOCEBPASS 2025. Requiere firmas de Subdirección.'},
+  {id:2,titulo:'Captura indicadores INDICAS — Mayo 2026',servicio:'Calidad y Planeación',responsable:'Q.F.B. Protacio',tipo:'Indicadores',prioridad:'Alta',estatus:'Pendiente',vencimiento:'2026-06-10',comite:'',desc:''},
+  {id:3,titulo:'Acta sesión ordinaria CODECIAAS — Junio',servicio:'Calidad y Planeación',responsable:'Q.F.B. Protacio',tipo:'Comité',prioridad:'Media',estatus:'Pendiente',vencimiento:'2026-06-20',comite:'CODECIAAS',desc:'Revisar casos RHOVE del mes'},
+  {id:4,titulo:'Diagnóstico situacional — Estomatología',servicio:'Estomatología',responsable:'Jefe de Servicio',tipo:'MOCEBPASS',prioridad:'Alta',estatus:'Completada',vencimiento:'2026-05-30',comite:'',desc:''},
+  {id:5,titulo:'Calibración equipo Rayos X — COFEPRIS',servicio:'Radiología e Imagen',responsable:'Jefe de Servicio',tipo:'Administrativo',prioridad:'Alta',estatus:'Bloqueada',vencimiento:'2026-06-05',comite:'',desc:'Pendiente resolución de Subdirección Médica'},
+  {id:6,titulo:'Protocolo manejo residuos RPBI — Quirófano',servicio:'Quirófano',responsable:'Jefa de Quirófano',tipo:'Comité',prioridad:'Media',estatus:'En Revisión',vencimiento:'2026-06-18',comite:'CEIE',desc:''},
+  {id:7,titulo:'PAT Medicina Interna — 2do trimestre 2026',servicio:'Medicina Interna',responsable:'Jefe de Servicio',tipo:'MOCEBPASS',prioridad:'Alta',estatus:'Pendiente',vencimiento:'2026-06-08',comite:'',desc:''},
+  {id:8,titulo:'Consolidar datos MECIC — Junio',servicio:'Calidad y Planeación',responsable:'Q.F.B. Protacio',tipo:'Indicadores',prioridad:'Media',estatus:'Pendiente',vencimiento:'2026-06-25',comite:'',desc:''},
+  {id:9,titulo:'Retroalimentación MOCEBPASS — Farmacia',servicio:'Farmacia',responsable:'Jefe de Farmacia',tipo:'MOCEBPASS',prioridad:'Alta',estatus:'En Progreso',vencimiento:'2026-06-15',comite:'',desc:''},
+  {id:10,titulo:'Minuta Junta de Gobierno — Junio 2026',servicio:'Dirección General',responsable:'Q.F.B. Protacio',tipo:'Comité',prioridad:'Alta',estatus:'Pendiente',vencimiento:'2026-06-14',comite:'Junta de Gobierno',desc:''},
+  {id:11,titulo:'Cuadro básico medicamentos — actualización',servicio:'Farmacia',responsable:'Jefe de Farmacia',tipo:'Comité',prioridad:'Media',estatus:'En Progreso',vencimiento:'2026-06-22',comite:'Comité de Insumos',desc:''},
+  {id:12,titulo:'Reporte mensual IHI GTT — Mayo',servicio:'Calidad y Planeación',responsable:'Q.F.B. Protacio',tipo:'Mejora',prioridad:'Media',estatus:'Completada',vencimiento:'2026-06-01',comite:'',desc:''},
+  {id:13,titulo:'Plan de mejora — Urgencias (tiempos de atención)',servicio:'Urgencias',responsable:'Jefe de Urgencias',tipo:'Mejora',prioridad:'Alta',estatus:'En Progreso',vencimiento:'2026-06-30',comite:'',desc:''},
+  {id:14,titulo:'Gestión de residuos RPBI — Terapia Intensiva',servicio:'Terapia Intensiva',responsable:'Jefe de Servicio',tipo:'Administrativo',prioridad:'Media',estatus:'Pendiente',vencimiento:'2026-06-28',comite:'',desc:''},
+  {id:15,titulo:'Evidencia MOCEBPASS criterio 4.2.1 — Laboratorio',servicio:'Laboratorio',responsable:'Jefe de Laboratorio',tipo:'MOCEBPASS',prioridad:'Alta',estatus:'En Revisión',vencimiento:'2026-06-11',comite:'',desc:'Compilar evidencias de control de calidad interno'},
+];
+
+let acuerdos = [
+  {id:1,comite:'CODECIAAS',sesion:'Sesión Ord. Mayo 2026',acuerdo:'Implementar vigilancia activa de IAAS en Quirófano con reporte mensual',responsable:'Jefa de Quirófano',vencimiento:'2026-06-30',estatus:'Pendiente'},
+  {id:2,comite:'CODECIAAS',sesion:'Sesión Ord. Mayo 2026',acuerdo:'Capacitación en higiene de manos para brigada de Enfermería (100% de cobertura)',responsable:'Jefa de Enfermería',vencimiento:'2026-06-20',estatus:'En Progreso'},
+  {id:3,comite:'CEIE',sesion:'Sesión Ord. Abril 2026',acuerdo:'Actualizar consentimiento informado en Cirugía General conforme NOM-004',responsable:'Jefe de Cirugía',vencimiento:'2026-06-10',estatus:'Completada'},
+  {id:4,comite:'CEIE',sesion:'Sesión Ord. Abril 2026',acuerdo:'Revisar y actualizar protocolo RPBI en servicios de hospitalización',responsable:'Jefe de Medicina Interna',vencimiento:'2026-06-25',estatus:'Pendiente'},
+  {id:5,comite:'SCAM',sesion:'Sesión Ord. Mayo 2026',acuerdo:'Implementar formato AWaRe en prescripción de antibióticos a partir de julio',responsable:'Subcomité de Antimicrobianos',vencimiento:'2026-07-01',estatus:'En Progreso'},
+  {id:6,comite:'Junta de Gobierno',sesion:'Sesión Junio 2026',acuerdo:'Aprobar Plan Anual de Calidad 2026-2027 y presentar a IMSS-Bienestar',responsable:'Q.F.B. Protacio',vencimiento:'2026-06-30',estatus:'Pendiente'},
+  {id:7,comite:'Comité de Insumos',sesion:'Sesión Mayo 2026',acuerdo:'Actualizar cuadro básico de material de curación para segundo semestre',responsable:'Jefe de Farmacia',vencimiento:'2026-06-15',estatus:'En Progreso'},
+];
+
+let nextTaskId = tasks.length + 1;
+let nextAcuerdoId = acuerdos.length + 1;
+const today = new Date().toISOString().split('T')[0];
+let gsUrl = 'https://script.google.com/macros/s/AKfycbyG456pzNEylz0z6WnQxnfviK1vKavfxzK0jQXravpYcziVJEWp61uEjTxSu7J21gdD/exec';
+let chartServ = null, chartTipo = null;
+
+// ════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════
+const isVencida = t => t.estatus !== 'Completada' && t.vencimiento && t.vencimiento < today;
+
+function badgePrio(p){const m={Alta:'alta',Media:'media',Baja:'baja'};return`<span class="badge b-${m[p]||'media'}">${p}</span>`}
+function badgeEst(e){const m={Pendiente:'pend','En Progreso':'prog',Completada:'comp',Bloqueada:'bloq','En Revisión':'rev'};return`<span class="badge b-${m[e]||'pend'}">${e}</span>`}
+function badgeTipo(t){const m={MOCEBPASS:'moceb',Comité:'comit',Indicadores:'indica',Mejora:'mejora',Administrativo:'admin'};return`<span class="badge b-${m[t]||'admin'}">${t}</span>`}
+
+function showBanner(type, msg, ms=3500){
+  ['ok','err','info'].forEach(t=>document.getElementById('banner-'+t).classList.remove('show'));
+  if(type==='ok')document.getElementById('banner-ok-txt').textContent=msg;
+  else if(type==='err')document.getElementById('banner-err-txt').textContent=msg;
+  else document.getElementById('banner-info-txt').textContent=msg;
+  document.getElementById('banner-'+type).classList.add('show');
+  if(ms>0)setTimeout(()=>document.getElementById('banner-'+type).classList.remove('show'),ms);
+}
+
+function saveLocal(){
+  try{localStorage.setItem('hgr_tasks',JSON.stringify(tasks));localStorage.setItem('hgr_acuerdos',JSON.stringify(acuerdos));}catch(e){}
+}
+function loadLocal(){
+  try{
+    const t=localStorage.getItem('hgr_tasks');if(t)tasks=JSON.parse(t);
+    const a=localStorage.getItem('hgr_acuerdos');if(a)acuerdos=JSON.parse(a);
+    const u=localStorage.getItem('hgr_gsurl');if(u)gsUrl=u;
+    const cu=localStorage.getItem('hgr_cfg_url');if(cu)document.getElementById('cfg-url').value=cu;
+    const cs=localStorage.getItem('hgr_cfg_sid');if(cs)document.getElementById('cfg-sheetid').value=cs;
+    if(tasks.length)nextTaskId=Math.max(...tasks.map(x=>parseInt(x.id)||0))+1;
+    if(acuerdos.length)nextAcuerdoId=Math.max(...acuerdos.map(x=>parseInt(x.id)||0))+1;
+  }catch(e){}
+}
+function saveConfig(){
+  const url=document.getElementById('cfg-url').value.trim();
+  const sid=document.getElementById('cfg-sheetid').value.trim();
+  gsUrl=url;
+  try{localStorage.setItem('hgr_gsurl',url);localStorage.setItem('hgr_cfg_url',url);localStorage.setItem('hgr_cfg_sid',sid);}catch(e){}
+  if(url){
+    sincronizar();
+  } else {
+    showBanner('info','Configuración guardada. Agrega la URL del Apps Script para conectar con Google Sheets.',5000);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// SINCRONIZACIÓN CON GOOGLE SHEETS
+// ════════════════════════════════════════════════════════════
+async function sincronizar(){
+  if(!gsUrl){showBanner('info','Configura primero la URL del Apps Script en la pestaña Configurar.',5000);return;}
+  const btn=document.getElementById('btn-sync');
+  btn.innerHTML='<i class="ti ti-loader-2"></i> Sincronizando…';
+  try{
+    const r=await fetch(gsUrl+'?action=getTodo');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(data.error)throw new Error(data.error);
+    if(data.tasks&&data.tasks.length){tasks=data.tasks;nextTaskId=Math.max(...tasks.map(x=>parseInt(x.id)||0))+1;}
+    if(data.acuerdos&&data.acuerdos.length){acuerdos=data.acuerdos;nextAcuerdoId=Math.max(...acuerdos.map(x=>parseInt(x.id)||0))+1;}
+    saveLocal();
+    renderTodo();
+    showBanner('ok','Datos sincronizados con Google Sheets · '+new Date().toLocaleTimeString('es-MX'));
+    document.getElementById('dash-updated').textContent='Actualizado: '+new Date().toLocaleTimeString('es-MX');
+  }catch(err){
+    showBanner('err','No se pudo conectar: '+err.message+'. Verifica la URL en Configurar.',6000);
+  }
+  btn.innerHTML='<i class="ti ti-refresh"></i> Sincronizar';
+}
+
+async function pushTarea(tarea){
+  if(!gsUrl)return;
+  try{
+    await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:tarea.id?'updateTarea':'addTarea',data:tarea})});
+  }catch(e){}
+}
+
+// ════════════════════════════════════════════════════════════
+// NAVEGACIÓN
+// ════════════════════════════════════════════════════════════
+function showView(id,el){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('v-'+id).classList.add('active');
+  el.classList.add('active');
+  const renders={dashboard:renderDashboard,kanban:renderKanban,lista:renderLista,comites:renderComites};
+  if(renders[id])renders[id]();
+}
+
+function renderTodo(){renderDashboard();renderKanban();renderLista();renderComites();}
+
+// ════════════════════════════════════════════════════════════
+// POBLADO DE SELECTS
+// ════════════════════════════════════════════════════════════
+function populateSelects(){
+  ['k-svc','l-svc'].forEach(id=>{
+    const s=document.getElementById(id);
+    const v=s.value;
+    s.innerHTML='<option value="">— Servicio —</option>';
+    SERVICIOS.forEach(sv=>s.insertAdjacentHTML('beforeend',`<option>${sv}</option>`));
+    s.value=v;
+  });
+  ['m-svc'].forEach(id=>{
+    const s=document.getElementById(id);
+    s.innerHTML='';
+    SERVICIOS.forEach(sv=>s.insertAdjacentHTML('beforeend',`<option>${sv}</option>`));
+  });
+  ['c-comite'].forEach(id=>{
+    const s=document.getElementById(id);
+    const v=s.value;
+    s.innerHTML='<option value="">— Todos los comités —</option>';
+    COMITES.forEach(c=>s.insertAdjacentHTML('beforeend',`<option>${c}</option>`));
+    s.value=v;
+  });
+  ['m-comite'].forEach(id=>{
+    const s=document.getElementById(id);
+    s.innerHTML='<option value="">— N/A —</option>';
+    COMITES.forEach(c=>s.insertAdjacentHTML('beforeend',`<option>${c}</option>`));
+  });
+  ['a-comite'].forEach(id=>{
+    const s=document.getElementById(id);
+    s.innerHTML='';
+    COMITES.forEach(c=>s.insertAdjacentHTML('beforeend',`<option>${c}</option>`));
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════════════════════
+function renderDashboard(){
+  const venc=tasks.filter(isVencida).length;
+  const pend=tasks.filter(t=>t.estatus==='Pendiente').length;
+  const prog=tasks.filter(t=>t.estatus==='En Progreso').length;
+  const comp=tasks.filter(t=>t.estatus==='Completada').length;
+  const acAct=acuerdos.filter(a=>a.estatus!=='Completada').length;
+  document.getElementById('kpi-total').textContent=tasks.length;
+  document.getElementById('kpi-venc').textContent=venc;
+  document.getElementById('kpi-pend').textContent=pend;
+  document.getElementById('kpi-prog').textContent=prog;
+  document.getElementById('kpi-comp').textContent=comp;
+  document.getElementById('kpi-acuerdos').textContent=acAct;
+
+  // Tabla por servicio
+  const svcMap={};
+  tasks.forEach(t=>{
+    if(!svcMap[t.servicio])svcMap[t.servicio]={total:0,comp:0,venc:0};
+    svcMap[t.servicio].total++;
+    if(t.estatus==='Completada')svcMap[t.servicio].comp++;
+    if(isVencida(t))svcMap[t.servicio].venc++;
+  });
+  const svcs=Object.keys(svcMap).sort((a,b)=>svcMap[b].total-svcMap[a].total);
+  const tbody=document.getElementById('serv-tbody');
+  tbody.innerHTML='';
+  svcs.forEach(s=>{
+    const d=svcMap[s];const pct=Math.round(d.comp/d.total*100);
+    const color=pct>=80?'#27AE60':pct>=50?'#F39C12':'#E74C3C';
+    const estado=d.venc>0?`<span class="badge b-alta"><i class="ti ti-alert-triangle"></i> ${d.venc} vencida${d.venc>1?'s':''}</span>`:pct>=80?`<span class="badge b-comp">Al día</span>`:`<span class="badge b-pend">En tiempo</span>`;
+    tbody.insertAdjacentHTML('beforeend',`<tr>
+      <td style="font-weight:500">${s}</td>
+      <td style="text-align:center">${d.total}</td>
+      <td style="text-align:center;color:#1E8449;font-weight:600">${d.comp}</td>
+      <td style="text-align:center;color:${d.venc>0?'#922B21':'var(--text2)'}">${d.venc}</td>
+      <td><div class="progress-bar" style="width:80px"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div> <span style="font-size:11px;color:var(--text2);margin-left:4px">${pct}%</span></td>
+      <td>${estado}</td>
+    </tr>`);
+  });
+
+  // Charts
+  const chartSvcs=svcs.slice(0,8);
+  if(chartServ)chartServ.destroy();
+  chartServ=new Chart(document.getElementById('chartServ'),{
+    type:'bar',
+    data:{labels:chartSvcs.map(s=>s.length>16?s.slice(0,16)+'…':s),datasets:[
+      {label:'Total',data:chartSvcs.map(s=>svcMap[s].total),backgroundColor:'#AEC6CF',borderRadius:4},
+      {label:'Completadas',data:chartSvcs.map(s=>svcMap[s].comp),backgroundColor:'#27AE60',borderRadius:4},
+      {label:'Vencidas',data:chartSvcs.map(s=>svcMap[s].venc),backgroundColor:'#E74C3C',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},autoSkip:false,maxRotation:40}},y:{ticks:{font:{size:10}},beginAtZero:true,precision:0}}}
+  });
+
+  const tipoMap={};
+  tasks.forEach(t=>{tipoMap[t.tipo]=(tipoMap[t.tipo]||0)+1});
+  const tipoLabels=Object.keys(tipoMap);
+  const tipoColors=['#1A5276','#6C3483','#145A32','#7D6608','#666'];
+  if(chartTipo)chartTipo.destroy();
+  chartTipo=new Chart(document.getElementById('chartTipo'),{
+    type:'doughnut',
+    data:{labels:tipoLabels,datasets:[{data:tipoLabels.map(k=>tipoMap[k]),backgroundColor:tipoColors,borderWidth:1,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:8}}}}
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// KANBAN
+// ════════════════════════════════════════════════════════════
+function renderKanban(){
+  const svc=document.getElementById('k-svc').value;
+  const prio=document.getElementById('k-prio').value;
+  const tipo=document.getElementById('k-tipo').value;
+  const q=document.getElementById('k-search').value.toLowerCase();
+  const cols={Pendiente:'col-pend','En Progreso':'col-prog','En Revisión':'col-rev',Completada:'col-comp'};
+  const cnts={Pendiente:0,'En Progreso':0,'En Revisión':0,Completada:0};
+  Object.values(cols).forEach(id=>document.getElementById(id).innerHTML='');
+  tasks.filter(t=>{
+    if(t.estatus==='Bloqueada')return false;
+    if(svc&&t.servicio!==svc)return false;
+    if(prio&&t.prioridad!==prio)return false;
+    if(tipo&&t.tipo!==tipo)return false;
+    if(q&&![t.titulo,t.servicio,t.responsable].join(' ').toLowerCase().includes(q))return false;
+    return true;
+  }).forEach(t=>{
+    const colId=cols[t.estatus];if(!colId)return;
+    cnts[t.estatus]++;
+    const v=isVencida(t);
+    const vTag=v?`<span style="color:#922B21;font-size:10px"><i class="ti ti-alert-triangle"></i> Vencida ${t.vencimiento}</span>`:`<span>${t.vencimiento}</span>`;
+    document.getElementById(colId).insertAdjacentHTML('beforeend',`
+      <div class="k-card ${t.prioridad.toLowerCase()}${v?' vencida-card':''}" onclick="editTarea(${t.id})">
+        <div class="k-title">${t.titulo}</div>
+        <div class="k-meta">${badgePrio(t.prioridad)} ${badgeTipo(t.tipo)}</div>
+        <div class="k-meta" style="margin-top:4px">${vTag}</div>
+        <div class="k-svc"><i class="ti ti-building-hospital" style="font-size:10px"></i> ${t.servicio}</div>
+      </div>`);
+  });
+  const m={Pendiente:'pend','En Progreso':'prog','En Revisión':'rev',Completada:'comp'};
+  Object.entries(cnts).forEach(([est,n])=>document.getElementById('cnt-'+m[est]).textContent=n);
+}
+
+// ════════════════════════════════════════════════════════════
+// LISTA
+// ════════════════════════════════════════════════════════════
+function renderLista(){
+  const svc=document.getElementById('l-svc').value;
+  const est=document.getElementById('l-est').value;
+  const prio=document.getElementById('l-prio').value;
+  const tipo=document.getElementById('l-tipo').value;
+  const q=document.getElementById('l-search').value.toLowerCase();
+  const sort=document.getElementById('l-sort').value;
+  const prioOrd={Alta:0,Media:1,Baja:2};
+  let list=tasks.filter(t=>{
+    if(svc&&t.servicio!==svc)return false;
+    if(est&&t.estatus!==est)return false;
+    if(prio&&t.prioridad!==prio)return false;
+    if(tipo&&t.tipo!==tipo)return false;
+    if(q&&![t.titulo,t.servicio,t.responsable].join(' ').toLowerCase().includes(q))return false;
+    return true;
+  });
+  if(sort==='venc')list.sort((a,b)=>(a.vencimiento||'').localeCompare(b.vencimiento||''));
+  else if(sort==='prio')list.sort((a,b)=>prioOrd[a.prioridad]-prioOrd[b.prioridad]);
+  else if(sort==='svc')list.sort((a,b)=>a.servicio.localeCompare(b.servicio));
+  else list.sort((a,b)=>a.titulo.localeCompare(b.titulo));
+
+  const tbody=document.getElementById('lista-tbody');
+  tbody.innerHTML='';
+  document.getElementById('lista-empty').style.display=list.length?'none':'block';
+  document.getElementById('lista-count').textContent=`${list.length} tarea${list.length!==1?'s':''}`;
+  list.forEach(t=>{
+    const v=isVencida(t);
+    tbody.insertAdjacentHTML('beforeend',`<tr class="${v?'vencida':''}">
+      <td style="font-weight:500;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${t.titulo}">${t.titulo}</td>
+      <td style="font-size:12px;white-space:nowrap">${t.servicio}</td>
+      <td style="font-size:12px;white-space:nowrap">${t.responsable||'—'}</td>
+      <td>${badgeTipo(t.tipo)}</td>
+      <td>${badgePrio(t.prioridad)}</td>
+      <td>${badgeEst(t.estatus)}</td>
+      <td style="font-size:12px;white-space:nowrap;color:${v?'#922B21':'var(--text)'}">${v?'⚠ ':''}${t.vencimiento||'—'}</td>
+      <td><button class="btn btn-sm" onclick="editTarea(${t.id})" title="Editar"><i class="ti ti-edit"></i></button></td>
+    </tr>`);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// COMITÉS
+// ════════════════════════════════════════════════════════════
+function renderComites(){
+  const filtComite=document.getElementById('c-comite').value;
+  const filtEst=document.getElementById('c-est').value;
+  const container=document.getElementById('comites-container');
+  container.innerHTML='';
+  const grupos={};
+  acuerdos.forEach(a=>{
+    if(filtComite&&a.comite!==filtComite)return;
+    if(filtEst&&a.estatus!==filtEst)return;
+    if(!grupos[a.comite])grupos[a.comite]=[];
+    grupos[a.comite].push(a);
+  });
+  if(!Object.keys(grupos).length){
+    container.innerHTML='<div class="empty-state"><i class="ti ti-inbox" style="font-size:32px;opacity:.3;display:block;margin-bottom:8px"></i>Sin acuerdos con los filtros seleccionados</div>';
+    return;
+  }
+  Object.entries(grupos).forEach(([comite,acs])=>{
+    const total=acs.length;const comp=acs.filter(a=>a.estatus==='Completada').length;
+    const pct=Math.round(comp/total*100);
+    container.insertAdjacentHTML('beforeend',`
+      <div class="comite-card">
+        <div class="comite-header">
+          <div>
+            <div class="comite-name"><i class="ti ti-users-group" style="color:var(--purple)"></i> ${comite}</div>
+            <div class="comite-sub">${acs[0]?.sesion||''}</div>
+          </div>
+          <div style="text-align:right;min-width:100px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${comp}/${total} completados (${pct}%)</div>
+            <div class="progress-bar" style="width:80px;height:8px"><div class="progress-fill" style="width:${pct}%;background:${pct>=80?'#27AE60':pct>=50?'#F39C12':'#E74C3C'}"></div></div>
+          </div>
+        </div>
+        ${acs.map((a,i)=>`<div class="acuerdo-row">
+          <span class="acuerdo-num">${i+1}.</span>
+          <div class="acuerdo-body">
+            <div class="acuerdo-text">${a.acuerdo}</div>
+            <div class="acuerdo-meta"><i class="ti ti-user" style="font-size:11px"></i> ${a.responsable} &nbsp;·&nbsp; <i class="ti ti-calendar" style="font-size:11px"></i> ${a.vencimiento||'—'}</div>
+          </div>
+          <div style="flex-shrink:0">${badgeEst(a.estatus)}</div>
+        </div>`).join('')}
+      </div>`);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// MODALES — TAREA
+// ════════════════════════════════════════════════════════════
+function openModal(tipo){
+  if(tipo==='tarea'){
+    document.getElementById('modal-tarea-title').innerHTML='<i class="ti ti-plus"></i> Nueva tarea';
+    document.getElementById('m-id').value='';
+    document.getElementById('m-titulo').value='';
+    document.getElementById('m-resp').value='';
+    document.getElementById('m-desc').value='';
+    document.getElementById('m-venc').value='';
+    document.getElementById('m-prio').value='Alta';
+    document.getElementById('m-tipo').value='MOCEBPASS';
+    document.getElementById('m-est').value='Pendiente';
+    document.getElementById('m-comite').value='';
+    document.getElementById('m-svc').value=SERVICIOS[0];
+    document.getElementById('modal-tarea').classList.add('open');
+  } else {
+    document.getElementById('a-id').value='';
+    document.getElementById('a-acuerdo').value='';
+    document.getElementById('a-resp').value='';
+    document.getElementById('a-venc').value='';
+    document.getElementById('a-sesion').value='';
+    document.getElementById('a-est').value='Pendiente';
+    document.getElementById('modal-acuerdo').classList.add('open');
+  }
+}
+function closeModal(tipo){document.getElementById('modal-'+tipo).classList.remove('open')}
+
+function editTarea(id){
+  const t=tasks.find(x=>x.id==id);if(!t)return;
+  document.getElementById('modal-tarea-title').innerHTML='<i class="ti ti-edit"></i> Editar tarea';
+  document.getElementById('m-id').value=t.id;
+  document.getElementById('m-titulo').value=t.titulo;
+  document.getElementById('m-svc').value=t.servicio;
+  document.getElementById('m-resp').value=t.responsable||'';
+  document.getElementById('m-tipo').value=t.tipo;
+  document.getElementById('m-prio').value=t.prioridad;
+  document.getElementById('m-est').value=t.estatus;
+  document.getElementById('m-venc').value=t.vencimiento||'';
+  document.getElementById('m-comite').value=t.comite||'';
+  document.getElementById('m-desc').value=t.desc||'';
+  document.getElementById('modal-tarea').classList.add('open');
+}
+
+function guardarTarea(){
+  const titulo=document.getElementById('m-titulo').value.trim();
+  if(!titulo){alert('El título es obligatorio.');return;}
+  const id=document.getElementById('m-id').value;
+  const data={
+    titulo,
+    servicio:document.getElementById('m-svc').value,
+    responsable:document.getElementById('m-resp').value||'Por asignar',
+    tipo:document.getElementById('m-tipo').value,
+    prioridad:document.getElementById('m-prio').value,
+    estatus:document.getElementById('m-est').value,
+    vencimiento:document.getElementById('m-venc').value||today,
+    comite:document.getElementById('m-comite').value,
+    desc:document.getElementById('m-desc').value
+  };
+  if(id){
+    data.id=parseInt(id);
+    const idx=tasks.findIndex(t=>t.id==id);
+    if(idx>=0)tasks[idx]={...tasks[idx],...data};
+    pushTarea(data);
+  } else {
+    data.id=nextTaskId++;
+    tasks.push(data);
+    pushTarea({...data,id:null}); // nueva tarea en sheets
+  }
+  closeModal('tarea');
+  saveLocal();
+  renderTodo();
+  showBanner('ok','Tarea guardada correctamente');
+}
+
+// ════════════════════════════════════════════════════════════
+// MODALES — ACUERDO
+// ════════════════════════════════════════════════════════════
+function guardarAcuerdo(){
+  const acuerdo=document.getElementById('a-acuerdo').value.trim();
+  if(!acuerdo){alert('El texto del acuerdo es obligatorio.');return;}
+  const id=document.getElementById('a-id').value;
+  const data={
+    comite:document.getElementById('a-comite').value,
+    sesion:document.getElementById('a-sesion').value,
+    acuerdo,
+    responsable:document.getElementById('a-resp').value||'Por asignar',
+    vencimiento:document.getElementById('a-venc').value||today,
+    estatus:document.getElementById('a-est').value
+  };
+  if(id){
+    data.id=parseInt(id);
+    const idx=acuerdos.findIndex(a=>a.id==id);
+    if(idx>=0)acuerdos[idx]={...acuerdos[idx],...data};
+  } else {
+    data.id=nextAcuerdoId++;
+    acuerdos.push(data);
+  }
+  closeModal('acuerdo');
+  saveLocal();
+  renderTodo();
+  showBanner('ok','Acuerdo registrado correctamente');
+}
+
+// ════════════════════════════════════════════════════════════
+// EXPORTAR CSV
+// ════════════════════════════════════════════════════════════
+function exportarCSV(){
+  const header=['ID','Título','Servicio','Responsable','Tipo','Prioridad','Estatus','Vencimiento','Comité','Descripción'];
+  const rows=tasks.map(t=>[t.id,t.titulo,t.servicio,t.responsable||'',t.tipo,t.prioridad,t.estatus,t.vencimiento||'',t.comite||'',t.desc||''].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','));
+  const csv='\uFEFF'+[header.join(','),...rows].join('\r\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='tareas_hgr_'+today+'.csv';
+  a.click();
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+document.getElementById('fecha-hdr').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+loadLocal();
+populateSelects();
+renderTodo();
+
+// Cerrar modal al hacer clic fuera
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open')});
+});
+</script>
+</body>
+</html>
