@@ -330,6 +330,13 @@ a{color:var(--primary)}
       <button class="btn btn-primary" onclick="saveConfig()"><i class="ti ti-device-floppy"></i> Guardar y probar conexión</button>
     </div>
     <div class="config-section">
+      <h3><i class="ti ti-database-import"></i> Cargar datos actuales en Google Sheets</h3>
+      <div class="modal-info" style="margin-bottom:10px">
+        Usa este botón <strong>una sola vez</strong> para escribir todos los datos que tienes en la app (incluyendo los datos de ejemplo) hacia Google Sheets. Después de esto, cada tarea nueva o editada se guardará automáticamente.
+      </div>
+      <button class="btn btn-primary" id="btn-bulk" onclick="bulkLoadToSheets()"><i class="ti ti-upload"></i> Cargar datos en Google Sheets</button>
+    </div>
+    <div class="config-section">
       <h3><i class="ti ti-rocket"></i> Pasos de instalación</h3>
       <div class="step-list">
         <div class="step-item">Crea una hoja de cálculo nueva en <strong>Google Sheets</strong>. Copia el ID de la URL (la parte larga entre /d/ y /edit).</div>
@@ -459,7 +466,7 @@ let acuerdos = [
 let nextTaskId = tasks.length + 1;
 let nextAcuerdoId = acuerdos.length + 1;
 const today = new Date().toISOString().split('T')[0];
-let gsUrl = 'https://script.google.com/macros/s/AKfycbyG456pzNEylz0z6WnQxnfviK1vKavfxzK0jQXravpYcziVJEWp61uEjTxSu7J21gdD/exec';
+let gsUrl = 'https://script.google.com/macros/s/AKfycbw6SBRXgoHCBItippI19Vlni59SOYaIUWVSJXp4IcgEsz-K-ltuv7utBp7D9p8gWzgq/exec';
 let chartServ = null, chartTipo = null;
 
 // ════════════════════════════════════════════════════════════
@@ -533,8 +540,37 @@ async function sincronizar(){
 async function pushTarea(tarea){
   if(!gsUrl)return;
   try{
-    await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:tarea.id?'updateTarea':'addTarea',data:tarea})});
+    const action=tarea._isNew?'addTarea':'updateTarea';
+    const data=encodeURIComponent(JSON.stringify(tarea));
+    await fetch(gsUrl+'?action='+action+'&data='+data);
   }catch(e){}
+}
+
+async function pushAcuerdo(acuerdo){
+  if(!gsUrl)return;
+  try{
+    const action=acuerdo._isNew?'addAcuerdo':'updateAcuerdo';
+    const data=encodeURIComponent(JSON.stringify(acuerdo));
+    await fetch(gsUrl+'?action='+action+'&data='+data);
+  }catch(e){}
+}
+
+async function bulkLoadToSheets(){
+  if(!gsUrl){showBanner('info','Configura primero la URL del Apps Script.',5000);return;}
+  const btn=document.getElementById('btn-bulk');
+  btn.disabled=true;btn.textContent='Cargando…';
+  try{
+    const payload={tasks:tasks,acuerdos:acuerdos};
+    const data=encodeURIComponent(JSON.stringify(payload));
+    const r=await fetch(gsUrl+'?action=bulkLoad&data='+data);
+    const res=await r.json();
+    if(res.ok){
+      showBanner('ok','Datos cargados en Google Sheets: '+res.tasks+' tareas, '+res.acuerdos+' acuerdos.');
+    } else {
+      showBanner('err','Error al cargar: '+(res.error||'desconocido'));
+    }
+  }catch(e){showBanner('err','No se pudo conectar: '+e.message);}
+  btn.disabled=false;btn.textContent='Cargar datos en Google Sheets';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -838,13 +874,15 @@ function guardarTarea(){
   };
   if(id){
     data.id=parseInt(id);
+    data._isNew=false;
     const idx=tasks.findIndex(t=>t.id==id);
     if(idx>=0)tasks[idx]={...tasks[idx],...data};
     pushTarea(data);
   } else {
     data.id=nextTaskId++;
+    data._isNew=true;
     tasks.push(data);
-    pushTarea({...data,id:null}); // nueva tarea en sheets
+    pushTarea(data);
   }
   closeModal('tarea');
   saveLocal();
@@ -869,11 +907,15 @@ function guardarAcuerdo(){
   };
   if(id){
     data.id=parseInt(id);
+    data._isNew=false;
     const idx=acuerdos.findIndex(a=>a.id==id);
     if(idx>=0)acuerdos[idx]={...acuerdos[idx],...data};
+    pushAcuerdo(data);
   } else {
     data.id=nextAcuerdoId++;
+    data._isNew=true;
     acuerdos.push(data);
+    pushAcuerdo(data);
   }
   closeModal('acuerdo');
   saveLocal();
