@@ -164,12 +164,24 @@ a{color:var(--primary)}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
+/* ── MENÚ MÓVIL ── */
+.btn-menu-movil{display:none;background:rgba(255,255,255,0.18);border:0.5px solid rgba(255,255,255,.3);color:#fff;font-size:18px;padding:4px 10px;border-radius:var(--radius);cursor:pointer;line-height:1.6}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150}
+.sidebar-overlay.open{display:block}
+
 /* ── RESPONSIVE ── */
 @media(max-width:900px){
   .layout{grid-template-columns:1fr}
-  .sidebar{display:none}
+  .btn-menu-movil{display:inline-flex}
+  .sidebar{
+    display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:240px;
+    transform:translateX(-100%);transition:transform .2s;z-index:160;box-shadow:2px 0 12px rgba(0,0,0,.15);
+  }
+  .sidebar.open{transform:translateX(0)}
   .kanban-board{grid-template-columns:1fr 1fr}
   .grid-2{grid-template-columns:1fr}
+  .topbar-right{gap:4px}
+  .btn-hdr span.txt-completo{display:none}
 }
 </style>
 </head>
@@ -179,19 +191,24 @@ a{color:var(--primary)}
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <div>
-    <div class="topbar-brand"><i class="ti ti-clipboard-check"></i> Gestor de Tareas — HGR Reynosa</div>
-    <div class="topbar-sub">Hospital General Reynosa "Dr. José María Cantú Garza" · IMSS-Bienestar · <span id="fecha-hdr"></span></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="btn-menu-movil" onclick="toggleMenuMovil()"><i class="ti ti-menu-2"></i></button>
+    <div>
+      <div class="topbar-brand"><i class="ti ti-clipboard-check"></i> Gestor de Tareas — HGR Reynosa</div>
+      <div class="topbar-sub">Hospital General Reynosa "Dr. José María Cantú Garza" · IMSS-Bienestar · <span id="fecha-hdr"></span></div>
+    </div>
   </div>
   <div class="topbar-right">
-    <button class="btn-hdr" onclick="openModal('tarea')"><i class="ti ti-plus"></i> Nueva tarea</button>
-    <button class="btn-hdr" onclick="openModal('acuerdo')"><i class="ti ti-gavel"></i> Nuevo acuerdo</button>
-    <button class="btn-hdr" id="btn-sync" onclick="sincronizar()"><i class="ti ti-refresh"></i> Sincronizar</button>
+    <button class="btn-hdr" onclick="openModal('tarea')"><i class="ti ti-plus"></i> <span class="txt-completo">Nueva tarea</span></button>
+    <button class="btn-hdr" onclick="openModal('acuerdo')"><i class="ti ti-gavel"></i> <span class="txt-completo">Nuevo acuerdo</span></button>
+    <button class="btn-hdr" id="btn-sync" onclick="sincronizar()"><i class="ti ti-refresh"></i> <span class="txt-completo">Sincronizar</span></button>
   </div>
 </div>
 
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMenuMovil()"></div>
+
 <!-- SIDEBAR -->
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
   <div class="sidebar-section">Vistas</div>
   <div class="nav-item active" onclick="showView('dashboard',this)"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
   <div class="nav-item" onclick="showView('kanban',this)"><i class="ti ti-layout-kanban"></i> Kanban</div>
@@ -506,7 +523,7 @@ let acuerdos = [];
 let nextTaskId = tasks.length + 1;
 let nextAcuerdoId = acuerdos.length + 1;
 const today = new Date().toISOString().split('T')[0];
-let gsUrl = 'https://script.google.com/macros/s/AKfycbykLB_uObWdkhDfNBnAsEYNd4kzEB-JjK2baCIdXfm79kA9JuhG-3Wu_tKBurx154snHw/exec';
+let gsUrl = 'https://script.google.com/macros/s/AKfycbw6SBRXgoHCBItippI19Vlni59SOYaIUWVSJXp4IcgEsz-K-ltuv7utBp7D9p8gWzgq/exec';
 let chartServ = null, chartTipo = null;
 
 // ════════════════════════════════════════════════════════════
@@ -637,6 +654,16 @@ function showView(id,el){
   el.classList.add('active');
   const renders={dashboard:renderDashboard,kanban:renderKanban,lista:renderLista,comites:renderComites,recurrentes:renderRecurrentes};
   if(renders[id])renders[id]();
+  if(window.innerWidth<=900)cerrarMenuMovil();
+}
+
+function toggleMenuMovil(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function cerrarMenuMovil(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
 }
 
 function renderTodo(){renderDashboard();renderKanban();renderLista();renderComites();renderRecurrentes();}
